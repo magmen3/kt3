@@ -1,0 +1,57 @@
+// =====================================================================
+// prisma/schema.prisma — СХЕМА БАЗЫ ДАННЫХ
+// ---------------------------------------------------------------------
+// Описание таблиц, полей и связей. Prisma по этому файлу:
+//   1) создаёт таблицы в базе    — npx prisma migrate dev  (npm run migrate)
+//   2) генерирует Prisma Client  — объект prisma, через который код делает запросы
+// Схема взята из задания один в один.
+// =====================================================================
+
+// Что генерировать: стандартный JS-клиент (его подключаем через require('@prisma/client'))
+generator client {
+  provider = "prisma-client-js"
+}
+
+// К какой базе подключаться: PostgreSQL, адрес берётся из .env (DATABASE_URL)
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Модель = таблица. Каждая строка внутри = колонка.
+// Формат: имяПоля  Тип  @атрибуты
+model User {
+  id        Int      @id @default(autoincrement()) // первичный ключ, номер растёт сам: 1, 2, 3...
+  email     String   @unique                       // уникальный: два пользователя с одним email нельзя
+  name      String
+  role      Role     @default(USER)                // роль из enum ниже, по умолчанию USER
+  createdAt DateTime @default(now())               // дата создания ставится автоматически
+  posts     Post[]                                 // связь «один ко многим»: у пользователя много постов
+                                                   // (это НЕ колонка в таблице, а виртуальное поле Prisma)
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String?                                // ? — поле необязательное (может быть null)
+  published Boolean  @default(false)               // по умолчанию — черновик
+  createdAt DateTime @default(now())
+  authorId  Int                                    // настоящая колонка: id автора (внешний ключ)
+  author    User     @relation(fields: [authorId], references: [id])
+                                                   // связь: authorId указывает на User.id
+  tags      Tag[]                                  // связь «многие ко многим» с тегами
+}
+
+model Tag {
+  id    Int    @id @default(autoincrement())
+  name  String @unique                             // имя тега уникально — по нему работает connectOrCreate
+  posts Post[]                                     // у тега много постов, у поста много тегов.
+                                                   // Для этой связи Prisma сама создаёт
+                                                   // скрытую таблицу-связку "_PostToTag"
+}
+
+// Перечисление: роль может быть только одним из этих значений
+enum Role {
+  USER
+  ADMIN
+}
